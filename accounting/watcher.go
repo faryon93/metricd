@@ -80,7 +80,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
 
         bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
             Database:  conf.Database,
-            Precision: "ms",
+            Precision: "s",
         })
 
         // write a point for each host
