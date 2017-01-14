@@ -36,6 +36,7 @@ type Config struct {
 		Password string `toml:"password"`
 	} `toml:"influx"`
 	Snmp map[string]SnmpConf
+	Accouting map[string]AccoutingConf
 }
 
 type SnmpConf struct {
@@ -46,6 +47,16 @@ type SnmpConf struct {
 	SampleTime int `toml:"sample_time"`
 	DataPoints []Pair `toml:"datapoints"`
 	Tags []Pair `toml:"tags"`
+}
+
+type AccoutingConf struct {
+	Database string `toml:"database"`
+	Measurement string `toml:"measurement"`
+	SampleTime int `toml:"sample_time"`
+
+	Host string `toml:"host"`
+	Network string `toml:"network"`
+	Exclude []string `toml:"exclude"`
 }
 
 

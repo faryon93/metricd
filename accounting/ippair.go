@@ -1,4 +1,4 @@
-package main
+package accounting
 // metricd - metric collector for influxdb
 // Copyright (C) 2017 Maximilian Pachl
 
@@ -20,85 +20,88 @@ package main
 //  imports
 // --------------------------------------------------------------------------------------
 
-import (    
-    "log"
-    "flag"
-    "os"
-    "syscall"
-    "os/signal"
-
-    "github.com/faryon93/metricd/config"
-    "github.com/faryon93/metricd/snmp"
-
-    "github.com/influxdata/influxdb/client/v2"
-    "github.com/faryon93/metricd/accounting"
+import (
+    "net"
+    "strings"
+    "errors"
+    "strconv"
+    "fmt"
 )
-
 
 // --------------------------------------------------------------------------------------
 //  constants
 // --------------------------------------------------------------------------------------
 
+const (
+    FIELD_SPERATOR = " "
+)
 
-// --------------------------------------------------------------------------------------
-//  global variables
-// --------------------------------------------------------------------------------------
-
-// command line parameters
-var (
-    configPath string
+const (
+    FIELD_SRC_IP = 0
+    FIELD_DST_IP = 1
+    FIELD_BYTES = 2
+    FIELD_PACKETS = 3
 )
 
 
 // --------------------------------------------------------------------------------------
-//  application entry
+//  types
 // --------------------------------------------------------------------------------------
 
-func main() {
-    // setup commandline parser
-    flag.StringVar(&configPath, "conf", "/etc/metricd/metricd.conf", "")
-    flag.Parse()
-
-	// load the configuration file
-    conf, err := config.Load(configPath)
-    if err != nil {
-        log.Println("failed to load configuration file:", err.Error())
-        os.Exit(-1)
-    }
-
-    // connect to influxdb
-    influx, err := client.NewHTTPClient(client.HTTPConfig{
-        Addr: conf.Influx.Address,
-        Username: conf.Influx.User,
-        Password: conf.Influx.Password,
-    })
-    if err != nil {
-        log.Println("failed to connect to influxdb:", err.Error())
-        os.Exit(-1)
-    }
-
-    // setup all snmp measurement watcher
-    for name, snmpConf := range conf.Snmp {
-        log.Printf("setting up snmp target \"%s\"", name)
-        go snmp.Watcher(influx, snmpConf)
-    }
-
-    // setup all router os traffic accounting watchers
-    for name, accoutingConf := range conf.Accouting {
-        log.Printf("setting up accounting target \"%s\"", name)
-        go accounting.Watcher(influx, accoutingConf)
-    }
-
-    // wait for signals to exit application
-    wait(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+type IpPair struct {
+    SrcIp net.IP    // Source IP Address
+    DstIp net.IP    // Destination IP Addres
+    Packets uint64  // Transmitted Packets (Src -> Dst)
+    Bytes uint64    // Transmitted Packets (Src -> Dst)
 }
 
+
 // --------------------------------------------------------------------------------------
-//  helper functions
+//  constructors
 // --------------------------------------------------------------------------------------
 
-func wait(sig ...os.Signal) {
-    signals := make(chan os.Signal)
-    signal.Notify(signals, sig...)
-    <- signals
+func parseIpPair(raw string) (*IpPair, error) {
+    // split up the line
+    parsed := strings.Split(raw, FIELD_SPERATOR)
+    if len(parsed) < 4 {
+        return nil, errors.New("invalid number of fields found")
+    }
+
+    // parse int values
+    packets, err := strconv.Atoi(parsed[FIELD_PACKETS])
+    if err != nil {
+        return nil, err
+    }
+
+    bytes, err := strconv.Atoi(parsed[FIELD_BYTES])
+    if err != nil {
+        return nil, err
+    }
+
+    // construct object
+    return &IpPair{
+        SrcIp: net.ParseIP(parsed[FIELD_SRC_IP]),
+        DstIp: net.ParseIP(parsed[FIELD_DST_IP]),
+        Packets: uint64(packets),
+        Bytes: uint64(bytes),
+    }, nil
+}
+
+
+// --------------------------------------------------------------------------------------
+//  public members
+// --------------------------------------------------------------------------------------
+
+func (p *IpPair) IsInsideNetwork(network string) (bool) {
+    _, ipnet, err := net.ParseCIDR(network)
+    if err != nil {
+        return false
+    }
+
+    return ipnet.Contains(p.SrcIp) || ipnet.Contains(p.DstIp)
+}
+
+func (p *IpPair) String() string {
+    return fmt.Sprintf("%s -> %s: %d, %d", p.SrcIp.String(), p.DstIp.String(),
+                                                  p.Packets, p.Bytes)
 }
