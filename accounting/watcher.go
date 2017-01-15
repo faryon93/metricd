@@ -44,6 +44,8 @@ const (
     HOST_TAG = "host"
     TX_BYTES_FIELD = "tx_bytes"
     RX_BYTES_FIELD = "rx_bytes"
+    TX_PACKETS_FIELD = "tx_packets"
+    RX_PACKETS_FIELD = "rx_packets"
 )
 
 
@@ -81,6 +83,8 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
     // for the current cycle
     txBytes := make(map[string]int)
     rxBytes := make(map[string]int)
+    txPackets := make(map[string]int)
+    rxPackets := make(map[string]int)
 
     // make sure all info will be available
     if len(response.Results) > 0 && len(response.Results[0].Series) > 0 {
@@ -92,6 +96,8 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             // initialize the hosts stats with zero
             txBytes[host] = 0
             rxBytes[host] = 0
+            txPackets[host] = 0
+            rxPackets[host] = 0
         }
     }
 
@@ -117,10 +123,12 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             // the source ip is on the net to watch -> upload
             if network.Contains(pair.SrcIp) {
                 txBytes[pair.SrcIp.String()] += int(pair.Bytes)
+                txPackets[pair.SrcIp.String()] += int(pair.Packets)
 
             // the ip on the watch net receives traffic -> download
             } else if network.Contains(pair.DstIp) {
                 rxBytes[pair.DstIp.String()] += int(pair.Bytes)
+                rxPackets[pair.DstIp.String()] += int(pair.Packets)
             }
         }
 
@@ -137,7 +145,9 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
                 map[string]string{HOST_TAG: host},
                 map[string]interface{}{
                     TX_BYTES_FIELD: txBytes[host],
-                    RX_BYTES_FIELD: rxBytes[host]},
+                    RX_BYTES_FIELD: rxBytes[host],
+                    TX_PACKETS_FIELD: txPackets[host],
+                    RX_PACKETS_FIELD: rxPackets[host]},
                 startTime,
             )
             bp.AddPoint(pt)
@@ -145,6 +155,8 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             // reset the traffic counters
             txBytes[host] = 0
             rxBytes[host] = 0
+            txPackets[host] = 0
+            rxPackets[host] = 0
         }
 
         // write the datapoints to influx
