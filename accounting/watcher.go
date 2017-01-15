@@ -24,13 +24,11 @@ import (
     "time"
     "log"
     "net"
-    "net/http"
-    "io/ioutil"
     "bufio"
     "strings"
-    "errors"
 
     "github.com/faryon93/metricd/config"
+    "github.com/faryon93/metricd/util"
 
     "github.com/influxdata/influxdb/client/v2"
 )
@@ -42,6 +40,10 @@ import (
 
 const (
     SAMPLE_TIME = 1000
+
+    HOST_TAG = "host"
+    TX_BYTES_FIELD = "tx_bytes"
+    RX_BYTES_FIELD = "rx_bytes"
 )
 
 
@@ -56,17 +58,52 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
         return
     }
 
+    // Find all already present host keys, so datapoints are
+    // create even when the host does not issue any traffic.
+    // We need to fill in zero values if no traffic is issued.
+    q := client.Query{
+        Command:  "SHOW TAG VALUES FROM iaas_traffic WITH KEY=\"" + HOST_TAG + "\"",
+        Database: conf.Database,
+    }
+    response, err := influxdb.Query(q)
+    if err != nil {
+        log.Println("[Accouting] failed to get persistent hosts:", err.Error())
+        log.Println("[Accouting] exiting plugin")
+        return
+    }
+    if response.Error() != nil {
+        log.Println("[Accouting] failed to get persistent hosts:", response.Error().Error())
+        log.Println("[Accouting] exiting plugin")
+        return
+    }
+
+    // maps containing our taffic statistics
+    // for the current cycle
+    txBytes := make(map[string]int)
+    rxBytes := make(map[string]int)
+
+    // make sure all info will be available
+    if len(response.Results) > 0 && len(response.Results[0].Series) > 0 {
+        // prefill the traffic maps
+        for _, row := range response.Results[0].Series[0].Values {
+            // row[0] is the column name, row[1] column value
+            host := row[1].(string)
+
+            // initialize the hosts stats with zero
+            txBytes[host] = 0
+            rxBytes[host] = 0
+        }
+    }
+
+    // begin with the cyclic sampling
     for {
         startTime := time.Now()
 
         // gather the current ippairs from the router
-        accouting, err := get("http://" + conf.Host + "/accounting/ip.cgi")
+        accouting, err := util.HttpGet("http://" + conf.Host + "/accounting/ip.cgi")
         if err != nil {
             log.Println("[Accouting] failed to download ip accounting:", err.Error())
         }
-
-        txBytes := make(map[string]int)
-        rxBytes := make(map[string]int)
 
         // loop over the lines, which represent a pair of communication partners
         scanner := bufio.NewScanner(strings.NewReader(accouting))
@@ -97,22 +134,23 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             // construct the new datapoint
             pt, _ := client.NewPoint(
                 conf.Measurement,
-                map[string]string {
-                    "host": host,
-                },
+                map[string]string{HOST_TAG: host},
                 map[string]interface{}{
-                    "tx_bytes": txBytes[host],
-                    "rx_bytes": rxBytes[host],
-                },
+                    TX_BYTES_FIELD: txBytes[host],
+                    RX_BYTES_FIELD: rxBytes[host]},
                 time.Now(),
             )
             bp.AddPoint(pt)
+
+            // reset the traffic counters
+            txBytes[host] = 0
+            rxBytes[host] = 0
         }
 
         // write the datapoints to influx
         err = influxdb.Write(bp)
         if err != nil {
-            log.Println("failed to write datapoint:", err.Error())
+            log.Println("[Accouting] failed to write:", err.Error())
         }
 
         // sleep until next execution
@@ -124,28 +162,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
 //  private functions
 // --------------------------------------------------------------------------------------
 
-func get(url string) (string, error) {
-    // make the http get request
-    response, err := http.Get(url)
-    if err != nil {
-        return "", err
-    }
-    defer response.Body.Close()
-
-    if response.StatusCode != 200 {
-        return "", errors.New("invalid status code: " + response.Status)
-    }
-
-    // read the whole body
-    body, err := ioutil.ReadAll(response.Body)
-    if err != nil {
-        return "", err
-    }
-
-    return string(body), err
-}
-
-func hosts(x map[string]int, y map[string]int) []string {
+func hosts(x map[string]int, y map[string]int) ([]string) {
     // fake implementation of a set
     t := make(map[string]interface{})
     for key := range x {
