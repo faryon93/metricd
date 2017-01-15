@@ -40,6 +40,7 @@ import (
 
 const (
     SAMPLE_TIME = 1000
+    PRECISION = "s"
 
     HOST_TAG = "host"
     TX_BYTES_FIELD = "tx_bytes"
@@ -81,6 +82,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
 
     // maps containing our taffic statistics
     // for the current cycle
+    hosts := util.Set{}
     txBytes := make(map[string]int)
     rxBytes := make(map[string]int)
     txPackets := make(map[string]int)
@@ -91,13 +93,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
         // prefill the traffic maps
         for _, row := range response.Results[0].Series[0].Values {
             // row[0] is the column name, row[1] column value
-            host := row[1].(string)
-
-            // initialize the hosts stats with zero
-            txBytes[host] = 0
-            rxBytes[host] = 0
-            txPackets[host] = 0
-            rxPackets[host] = 0
+            hosts.Add(row[1].(string))
         }
     }
 
@@ -124,21 +120,23 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             if network.Contains(pair.SrcIp) {
                 txBytes[pair.SrcIp.String()] += int(pair.Bytes)
                 txPackets[pair.SrcIp.String()] += int(pair.Packets)
+                hosts.Add(pair.SrcIp.String())
 
             // the ip on the watch net receives traffic -> download
             } else if network.Contains(pair.DstIp) {
                 rxBytes[pair.DstIp.String()] += int(pair.Bytes)
                 rxPackets[pair.DstIp.String()] += int(pair.Packets)
+                hosts.Add(pair.DstIp.String())
             }
         }
 
         bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
             Database:  conf.Database,
-            Precision: "s",
+            Precision: PRECISION,
         })
 
         // write a point for each host
-        for _, host := range hosts(txBytes, rxBytes) {
+        for host := range hosts {
             // construct the new datapoint
             pt, _ := client.NewPoint(
                 conf.Measurement,
@@ -168,28 +166,4 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
         // sleep until next execution
         time.Sleep((SAMPLE_TIME * time.Millisecond) - time.Since(startTime))
     }
-}
-
-// --------------------------------------------------------------------------------------
-//  private functions
-// --------------------------------------------------------------------------------------
-
-func hosts(x map[string]int, y map[string]int) ([]string) {
-    // fake implementation of a set
-    t := make(map[string]interface{})
-    for key := range x {
-        t[key] = 0
-    }
-
-    for key := range y {
-        t[key] = 0
-    }
-
-    // get all the keys
-    keys := make([]string, 0)
-    for key := range t {
-        keys = append(keys, key)
-    }
-
-    return keys
 }
