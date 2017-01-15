@@ -52,7 +52,6 @@ type SnmpConf struct {
 type AccoutingConf struct {
 	Database string `toml:"database"`
 	Measurement string `toml:"measurement"`
-	SampleTime int `toml:"sample_time"`
 
 	Host string `toml:"host"`
 	Network string `toml:"network"`

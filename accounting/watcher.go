@@ -23,6 +23,7 @@ package accounting
 import (
     "time"
     "log"
+    "net"
     "net/http"
     "io/ioutil"
     "bufio"
@@ -32,7 +33,15 @@ import (
     "github.com/faryon93/metricd/config"
 
     "github.com/influxdata/influxdb/client/v2"
-    "net"
+)
+
+
+// --------------------------------------------------------------------------------------
+//  constants
+// --------------------------------------------------------------------------------------
+
+const (
+    SAMPLE_TIME = 1000
 )
 
 
@@ -100,7 +109,6 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
             bp.AddPoint(pt)
         }
 
-
         // write the datapoints to influx
         err = influxdb.Write(bp)
         if err != nil {
@@ -108,10 +116,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
         }
 
         // sleep until next execution
-        sleepTime := (time.Duration(conf.SampleTime) * time.Millisecond) - time.Since(startTime)
-        if sleepTime > 0 {
-            time.Sleep(sleepTime)
-        }
+        time.Sleep((SAMPLE_TIME * time.Millisecond) - time.Since(startTime))
     }
 }
 
