@@ -138,7 +138,7 @@ func Watcher(influxdb client.Client, conf config.AccoutingConf) {
                 map[string]interface{}{
                     TX_BYTES_FIELD: txBytes[host],
                     RX_BYTES_FIELD: rxBytes[host]},
-                time.Now(),
+                startTime,
             )
             bp.AddPoint(pt)
 
