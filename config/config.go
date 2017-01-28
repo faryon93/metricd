@@ -37,6 +37,7 @@ type Config struct {
 	} `toml:"influx"`
 	Snmp map[string]SnmpConf
 	Accouting map[string]AccoutingConf
+	MySql map[string]MySqlConf
 }
 
 type SnmpConf struct {
@@ -56,6 +57,16 @@ type AccoutingConf struct {
 	Host string `toml:"host"`
 	Network string `toml:"network"`
 	Exclude []string `toml:"exclude"`
+}
+
+type MySqlConf struct {
+	Database string `toml:"database"`
+	Measurement string `toml:"measurement"`
+	SampleTime int `toml:"sample_time"`
+
+	SqlUri string `toml:"sql_uri"`	
+	Queries []Pair `toml:"queries"`
+	Tags []Pair `toml:"tags"`
 }
 
 

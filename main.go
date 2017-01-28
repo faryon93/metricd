@@ -29,9 +29,10 @@ import (
 
     "github.com/faryon93/metricd/config"
     "github.com/faryon93/metricd/snmp"
+    "github.com/faryon93/metricd/accounting"
+    "github.com/faryon93/metricd/mysql"
 
     "github.com/influxdata/influxdb/client/v2"
-    "github.com/faryon93/metricd/accounting"
 )
 
 
@@ -87,6 +88,12 @@ func main() {
     for name, accoutingConf := range conf.Accouting {
         log.Printf("setting up accounting target \"%s\"", name)
         go accounting.Watcher(influx, accoutingConf)
+    }
+
+    // setup mysql tasks
+    for name, mysqlConf := range conf.MySql {
+        log.Printf("setting up mysql target \"%s\"", name)
+        go mysql.Watcher(influx, mysqlConf)
     }
 
     // wait for signals to exit application

@@ -1,0 +1,11 @@
+{
+	"project": {
+		"name": "metricd",
+		"description": "",
+		"package": "github.com/faryon93/metricd"
+	},
+	"go": {
+		"min-version": "1.6.1"
+	},
+	"assets": []
+}
