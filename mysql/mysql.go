@@ -68,15 +68,16 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 			}
 
 			// parse result			
-			rows.Next()
-			var value int
-			err = rows.Scan(&value)
-			if err != nil {
-				log.Printf("failed to read query: %s", err.Error())
-				continue
-			}
+			if rows.Next() {
+				var value int
+				err = rows.Scan(&value)
+				if err != nil {
+					log.Printf("failed to read query: %s", err.Error())
+					continue
+				}
 
-			values[query.Key()] = value
+				values[query.Key()] = value
+			}
 		}
 
 		// construct the new datapoint
