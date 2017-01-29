@@ -80,20 +80,27 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 			}
 		}
 
-		// construct the new datapoint
-		pt, _ := client.NewPoint(
-			conf.Measurement,
-			config.GetPairSlice(conf.Tags).Map(),
-			values,
-			startTime,
-		)
-		bp.AddPoint(pt)
+		// only write the data point to influx
+		// if actual numeric values have been
+		// added
+		if len(values) > 0 {
+			// construct the new datapoint
+			pt, _ := client.NewPoint(
+				conf.Measurement,
+				config.GetPairSlice(conf.Tags).Map(),
+				values,
+				startTime,
+			)
+			bp.AddPoint(pt)
 
-		// write the datapoints to influx
-        err = influxdb.Write(bp)
-        if err != nil {
-            log.Println("[Accouting] failed to write:", err.Error())
-        }
+			// write the datapoints to influx
+			err = influxdb.Write(bp)
+			if err != nil {
+				log.Println("[MySQL] failed to write:", err.Error())
+			}
+		}
+
+
 
 		// sleep until next execution
         time.Sleep((time.Duration(conf.SampleTime) * time.Millisecond) - time.Since(startTime))
