@@ -54,9 +54,9 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 	for {
 		startTime := time.Now()
 		bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
-            Database:  conf.Database,
-            Precision: "s",
-        })
+			Database:  conf.Database,
+			Precision: "s",
+		})
 
 		values := make(map[string]interface{})
 		for _, query := range conf.Queries {
@@ -78,11 +78,14 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 
 				values[query.Key()] = value
 			}
+
+			// close the resultset to
+			// avoid connection leakage
+			rows.Close()
 		}
 
 		// only write the data point to influx
-		// if actual numeric values have been
-		// added
+		// if actual numeric values have been added
 		if len(values) > 0 {
 			// construct the new datapoint
 			pt, _ := client.NewPoint(
@@ -103,6 +106,6 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 
 
 		// sleep until next execution
-        time.Sleep((time.Duration(conf.SampleTime) * time.Millisecond) - time.Since(startTime))
+		time.Sleep((time.Duration(conf.SampleTime) * time.Millisecond) - time.Since(startTime))
 	}
 }
