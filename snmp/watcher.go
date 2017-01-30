@@ -36,13 +36,13 @@ import (
 // --------------------------------------------------------------------------------------
 
 func Watcher(influxdb client.Client, snmpConf config.SnmpConf) {
-    for {
-        // esthablish snmp connection
-        snmp, err := gosnmp.NewGoSNMP(snmpConf.Host, snmpConf.Community, gosnmp.Version2c, 1)
-        if err != nil {
-            log.Fatal(err)
-        }
+    // esthablish snmp connection
+    snmp, err := gosnmp.NewGoSNMP(snmpConf.Host, snmpConf.Community, gosnmp.Version2c, 1)
+    if err != nil {
+        log.Fatal(err)
+    }
 
+    for {
         // gather all datapoints
         values := make(map[string]interface{})
         for _, oid := range snmpConf.DataPoints {
