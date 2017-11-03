@@ -25,6 +25,7 @@ import (
     "time"
 
     "github.com/faryon93/metricd/config"
+    "github.com/faryon93/metricd/util"
 
     "github.com/influxdata/influxdb/client/v2"
     "github.com/alouca/gosnmp"
@@ -70,7 +71,7 @@ func Watcher(influxdb client.Client, snmpConf config.SnmpConf) {
         // construct the new datapoint
         pt, _ := client.NewPoint(
             snmpConf.Measurement,
-            config.GetPairSlice(snmpConf.Tags).Map(),
+            util.GetPairSlice(snmpConf.Tags).Map(),
             values,
             time.Now(),
         )

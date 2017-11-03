@@ -1,4 +1,4 @@
-package config
+package util
 // metricd - metric collector for influxdb
 // Copyright (C) 2017 Maximilian Pachl
 

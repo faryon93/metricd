@@ -22,6 +22,9 @@ package config
 
 import (
 	"github.com/BurntSushi/toml"
+
+	"github.com/faryon93/metricd/syslog"
+	"github.com/faryon93/metricd/util"
 )
 
 
@@ -38,6 +41,7 @@ type Config struct {
 	Snmp map[string]SnmpConf
 	Accouting map[string]AccoutingConf
 	MySql map[string]MySqlConf
+	Syslog map[string]syslog.Recorder
 }
 
 type SnmpConf struct {
@@ -46,8 +50,8 @@ type SnmpConf struct {
 	Database string `toml:"database"`
 	Measurement string `toml:"measurement"`
 	SampleTime int `toml:"sample_time"`
-	DataPoints []Pair `toml:"datapoints"`
-	Tags []Pair `toml:"tags"`
+	DataPoints []util.Pair `toml:"datapoints"`
+	Tags []util.Pair `toml:"tags"`
 }
 
 type AccoutingConf struct {
@@ -65,10 +69,9 @@ type MySqlConf struct {
 	SampleTime int `toml:"sample_time"`
 
 	SqlUri string `toml:"sql_uri"`	
-	Queries []Pair `toml:"queries"`
-	Tags []Pair `toml:"tags"`
+	Queries []util.Pair `toml:"queries"`
+	Tags []util.Pair `toml:"tags"`
 }
-
 
 // --------------------------------------------------------------------------------------
 //  public functions

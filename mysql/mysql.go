@@ -28,6 +28,7 @@ import (
 
 	"github.com/influxdata/influxdb/client/v2"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/faryon93/metricd/util"
 )
 
 
@@ -90,7 +91,7 @@ func Watcher(influxdb client.Client, conf config.MySqlConf) {
 			// construct the new datapoint
 			pt, _ := client.NewPoint(
 				conf.Measurement,
-				config.GetPairSlice(conf.Tags).Map(),
+				util.GetPairSlice(conf.Tags).Map(),
 				values,
 				startTime,
 			)

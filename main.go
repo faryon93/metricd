@@ -33,6 +33,7 @@ import (
     "github.com/faryon93/metricd/mysql"
 
     "github.com/influxdata/influxdb/client/v2"
+    "github.com/faryon93/metricd/recorder"
 )
 
 
@@ -96,6 +97,12 @@ func main() {
         go mysql.Watcher(influx, mysqlConf)
     }
 
+    // syslog tasks
+    for name, syslog := range conf.Syslog {
+        log.Printf("setting up syslog recorder \"%s\"", name)
+        StartRecorder(name, &syslog, influx)
+    }
+
     // wait for signals to exit application
     wait(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 }
@@ -108,4 +115,23 @@ func wait(sig ...os.Signal) {
     signals := make(chan os.Signal)
     signal.Notify(signals, sig...)
     <- signals
+}
+
+// starts a recorder
+func StartRecorder(name string, r recorder.Recorder, influx client.Client) {
+    // make sure the configuration of the recorder is valid
+    err := r.IsValid()
+    if err != nil {
+        log.Printf("invalid settings for recorder \"%s\": %s", name, err.Error())
+        return
+    }
+
+    // setup the recorder
+    err = r.Setup(influx)
+    if err != nil {
+        log.Printf("failed to setup recorder \"%s\": %s", name, err.Error())
+        return
+    }
+
+    go r.Run()
 }
